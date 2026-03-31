@@ -66,11 +66,10 @@ public:
         std::bind(&EventBridgeNode::callback, this, std::placeholders::_1));
     this->pub_ =
         this->create_publisher<dvs_msgs::msg::EventArray>("~/events_out", qos);
-    if (this->get_paramter("is_master").as_bool()) {
-      this->time_diff_pub_(
-          std::in_place,
+    if (this->get_parameter("is_master").as_bool()) {
+      this->time_diff_pub_ =
           this->create_publisher<builtin_interfaces::msg::Duration>(
-              "/time_offset", qos));
+              "/time_offset", qos);
     }
   }
 
@@ -106,17 +105,18 @@ private:
           return event;
         });
 
-    if (this->get_paramter("is_master").as_bool()) {
-      builtin_interfaces::msg::Duration msg;
+    if (this->get_parameter("is_master").as_bool()) {
+      builtin_interfaces::msg::Duration time_diff_msg;
 
       rclcpp::Time ros_time(msg->header.stamp);
       rclcpp::Time event_time(event_array.events.back().ts);
       rclcpp::Duration offset = event_time - ros_time;
 
-      msg.sec = offset.seconds();
-      msg.ns = offset.nanoseconds();
+      time_diff_msg.sec = static_cast<int32_t>(std::floor(offset.seconds()));
+      time_diff_msg.nanosec = static_cast<uint64_t>(
+          mod<int64_t>(static_cast<int64_t>(offset.nanoseconds()), one_ns));
 
-      this->time_diff_pub_.value()->publish(msg);
+      this->time_diff_pub_.value()->publish(time_diff_msg);
     }
 
     // publish
