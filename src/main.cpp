@@ -68,6 +68,9 @@ private:
     event_array.width = msg->width;
     event_array.events.reserve(this->decoder_.events.size());
 
+    RCLCPP_INFO(this->get_logger(), "decoding %lu events",
+                this->decoder_.events.size());
+
     // move events from decoder to publisher
     std::ranges::transform(
         this->decoder_.events, std::back_inserter(event_array.events),
