@@ -33,7 +33,9 @@ using event_camera_codecs::EventPacket;
 class Decoder : public event_camera_codecs::EventProcessor {
 public:
   std::vector<Event> events;
-  Decoder(size_t event_buffer_size = 100) { events.reserve(event_buffer_size); }
+  Decoder(size_t event_buffer_size = 150000) {
+    events.reserve(event_buffer_size);
+  }
   inline void eventCD(uint64_t t, uint16_t ex, uint16_t ey,
                       uint8_t polarity) override {
     events.push_back({t, ex, ey, polarity == 1});
