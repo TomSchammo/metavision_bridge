@@ -1,5 +1,7 @@
 #include <cstdint>
+#include <optional>
 #include <ranges>
+#include <utility>
 #include <vector>
 
 #include <dvs_msgs/msg/event.hpp>
@@ -41,15 +43,24 @@ private:
   event_camera_codecs::DecoderFactory<EventPacket, Decoder> decoder_factory_;
   rclcpp::Subscription<event_camera_msgs::msg::EventPacket>::SharedPtr sub_;
   rclcpp::Publisher<dvs_msgs::msg::EventArray>::SharedPtr pub_;
+  std::optional<rclcpp::Publisher<builtin_interfaces::msg::Duration>::SharedPtr>
+      time_diff_pub_;
 
 public:
   EventBridgeNode() : Node("event_bridge") {
     auto qos = rclcpp::QoS(10).best_effort();
+    this->declare_parameter<bool>("is_master", false);
     this->sub_ = this->create_subscription<event_camera_msgs::msg::EventPacket>(
         "~/events_in", qos,
         std::bind(&EventBridgeNode::callback, this, std::placeholders::_1));
     this->pub_ =
         this->create_publisher<dvs_msgs::msg::EventArray>("~/events_out", qos);
+    if (this->get_paramter("is_master").as_bool()) {
+      this->time_diff_pub_(
+          std::in_place,
+          this->create_publisher<builtin_interfaces::msg::Duration>(
+              "/time_offset", qos));
+    }
   }
 
 private:
@@ -83,6 +94,19 @@ private:
           event.polarity = item.p;
           return event;
         });
+
+    if (this->get_paramter("is_master").as_bool()) {
+      builtin_interfaces::msg::Duration msg;
+
+      rclcpp::Time ros_time(msg->header.stamp);
+      rclcpp::Time event_time(event_array.events.back().ts);
+      rclcpp::Duration offset = event_time - ros_time;
+
+      msg.sec = offset.seconds();
+      msg.ns = offset.nanoseconds();
+
+      this->time_diff_pub_.value()->publish(msg);
+    }
 
     // publish
     if (!event_array.events.empty()) {

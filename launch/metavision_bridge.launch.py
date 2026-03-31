@@ -62,6 +62,9 @@ def generate_launch_description():
     left_bridge = Node(
         package='metavision_bridge',
         executable='metavision_bridge',
+        parameters=[{
+            'is_master': True
+        }],
         name='metavision_bridge_left',
         remappings=[
             ('~/events_in', LaunchConfiguration('left_input')),
@@ -74,6 +77,9 @@ def generate_launch_description():
     right_bridge = Node(
         package='metavision_bridge',
         executable='metavision_bridge',
+        parameters=[{
+            'is_master': False
+        }],
         name='metavision_bridge_right',
         remappings=[
             ('~/events_in', LaunchConfiguration('right_input')),
