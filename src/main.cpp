@@ -1,4 +1,6 @@
+#include <concepts>
 #include <cstdint>
+#include <cstdlib>
 #include <optional>
 #include <ranges>
 #include <utility>
@@ -16,6 +18,13 @@ struct Event {
   uint16_t x, y;
   bool p;
 };
+
+template <typename T>
+  requires std::integral<T>
+constexpr T mod(T a, T b) {
+  T r = a % b;
+  return r >= 0 ? r : r + std::abs(b);
+}
 
 constexpr uint64_t one_ns = 1'000'000'000;
 
