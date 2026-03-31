@@ -83,7 +83,6 @@ private:
 
     // publish
     if (!event_array.events.empty()) {
-      event_array.header.stamp = event_array.events.front().ts;
       this->pub_->publish(event_array);
     }
 
