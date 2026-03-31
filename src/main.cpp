@@ -113,7 +113,7 @@ private:
       rclcpp::Duration offset = event_time - ros_time;
 
       time_diff_msg.sec = static_cast<int32_t>(std::floor(offset.seconds()));
-      time_diff_msg.nanosec = static_cast<uint64_t>(
+      time_diff_msg.nanosec = static_cast<uint32_t>(
           mod<int64_t>(static_cast<int64_t>(offset.nanoseconds()), one_ns));
 
       this->time_diff_pub_.value()->publish(time_diff_msg);
