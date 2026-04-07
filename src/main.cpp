@@ -1,3 +1,5 @@
+// TODO(tom): Parameterize RoI support (or maybe RoI can be pulled from driver?)
+
 #include <cassert>
 #include <concepts>
 #include <cstdint>
@@ -57,9 +59,13 @@ private:
   rclcpp::Publisher<dvs_msgs::msg::EventArray>::SharedPtr pub_;
   std::optional<rclcpp::Publisher<builtin_interfaces::msg::Duration>::SharedPtr>
       time_diff_pub_;
+  uint16_t roix, roiy, roi_width, roi_height;
+  bool use_roi;
 
 public:
-  EventBridgeNode() : Node("event_bridge") {
+  EventBridgeNode()
+      : Node("event_bridge"), roix(576), roiy(324), roi_width(128),
+        roi_height(72), use_roi(true) {
     auto qos = rclcpp::QoS(10).best_effort();
     this->declare_parameter<bool>("is_master", false);
     this->sub_ = this->create_subscription<event_camera_msgs::msg::EventPacket>(
@@ -92,18 +98,21 @@ private:
 
     dvs_msgs::msg::EventArray event_array;
     event_array.header = msg->header;
-    event_array.height = msg->height;
-    event_array.width = msg->width;
+    event_array.height = use_roi ? roi_height : msg->height;
+    event_array.width = use_roi ? roi_width : msg->width;
     event_array.events.reserve(this->decoder_.events.size());
-
 
     // move events from decoder to publisher
     std::ranges::transform(
         this->decoder_.events, std::back_inserter(event_array.events),
-        [](const auto &item) {
+        [this](const auto &item) {
+          if (use_roi) {
+            assert(item.x >= roix);
+            assert(item.y >= roiy);
+          }
           dvs_msgs::msg::Event event;
-          event.x = item.x;
-          event.y = item.y;
+          event.x = use_roi ? item.x - roix : item.x;
+          event.y = use_roi ? item.y - roiy : item.y;
           event.ts.sec = static_cast<int32_t>(item.t / one_ns);
           event.ts.nanosec = static_cast<uint32_t>(item.t % one_ns);
           event.polarity = item.p;
