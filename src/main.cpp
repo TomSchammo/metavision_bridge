@@ -116,6 +116,7 @@ private:
       time_diff_msg.nanosec = static_cast<uint32_t>(
           mod<int64_t>(static_cast<int64_t>(offset.nanoseconds()), one_ns));
 
+      while (!this->time_diff_pub_.has_value()) {}
       this->time_diff_pub_.value()->publish(time_diff_msg);
     }
 
