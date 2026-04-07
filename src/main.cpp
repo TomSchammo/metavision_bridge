@@ -1,3 +1,4 @@
+#include <cassert>
 #include <concepts>
 #include <cstdint>
 #include <cstdlib>
@@ -83,14 +84,18 @@ private:
     }
     decoder->decode(*msg, &this->decoder_);
 
+    // RCLCPP_INFO(this->get_logger(), "decoding %lu events",
+    //             this->decoder_.events.size());
+
+    if (this->decoder_.events.size() == 0)
+      return;
+
     dvs_msgs::msg::EventArray event_array;
     event_array.header = msg->header;
     event_array.height = msg->height;
     event_array.width = msg->width;
     event_array.events.reserve(this->decoder_.events.size());
 
-    // RCLCPP_INFO(this->get_logger(), "decoding %lu events",
-    //             this->decoder_.events.size());
 
     // move events from decoder to publisher
     std::ranges::transform(
@@ -120,10 +125,10 @@ private:
       this->time_diff_pub_.value()->publish(time_diff_msg);
     }
 
+    assert(!event_array.events.empty());
+
     // publish
-    if (!event_array.events.empty()) {
-      this->pub_->publish(event_array);
-    }
+    this->pub_->publish(event_array);
 
     // clear buffer after processing
     this->decoder_.events.clear();
