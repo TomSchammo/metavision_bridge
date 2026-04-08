@@ -65,7 +65,7 @@ private:
 public:
   EventBridgeNode()
       : Node("event_bridge"), roix(576), roiy(324), roi_width(128),
-        roi_height(72), use_roi(true) {
+        roi_height(72), use_roi(false) {
     auto qos = rclcpp::QoS(10).best_effort();
     this->declare_parameter<bool>("is_master", false);
     this->sub_ = this->create_subscription<event_camera_msgs::msg::EventPacket>(
