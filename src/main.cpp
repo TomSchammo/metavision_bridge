@@ -125,19 +125,21 @@ private:
       this->t_last_front_ = e.t;
 
     else if ((e.t < t_last_front_))
-      RCLCPP_WARN(this->get_logger(), "Sensor batches are not monotonic! (t_last_front = %lu, t = %lu, d=%f ms)", t_last_front_, e.t, (t_last_front_ - e.t)/1000.0);
+      RCLCPP_WARN(this->get_logger(),
+                  "Sensor batches are not monotonic! (t_last_front = %lu, t = "
+                  "%lu, d=%f ms)",
+                  t_last_front_, e.t, (t_last_front_ - e.t) / 1000.0);
 
     this->t_last_front_ = e.t;
 
-    // RCLCPP_INFO(this->get_logger(), "[%s]: t=%lu", this->is_master_ ? "master" : "slave", e.t);
+    // RCLCPP_INFO(this->get_logger(), "[%s]: t=%lu", this->is_master_ ?
+    // "master" : "slave", e.t);
 #endif
-
 
     // move events from decoder to publisher
     std::ranges::transform(
         this->decoder_.events, std::back_inserter(event_array.events),
         [this](const auto &item) {
-
           if (use_roi) {
             assert(item.x >= roix);
             assert(item.y >= roiy);
@@ -147,7 +149,10 @@ private:
           if (t_last_ == 0)
             t_last_ = item.t;
           else if ((item.t < t_last_))
-            RCLCPP_WARN(this->get_logger(), "Sensor time not monotonic! (t_last = %lu, t = %lu, d=%f ms)", t_last_, item.t, (t_last_ - item.t)/1000.0);
+            RCLCPP_WARN(
+                this->get_logger(),
+                "Sensor time not monotonic! (t_last = %lu, t = %lu, d=%f ms)",
+                t_last_, item.t, (t_last_ - item.t) / 1000.0);
           t_last_ = item.t;
 #endif
 
@@ -171,7 +176,10 @@ private:
       time_diff_msg.nanosec = static_cast<uint32_t>(
           mod<int64_t>(static_cast<int64_t>(offset.nanoseconds()), one_ns));
 
+      // clang-format off
       while (!this->time_diff_pub_.has_value()) {}
+      // clang-format on
+
       this->time_diff_pub_.value()->publish(time_diff_msg);
     }
 
