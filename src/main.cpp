@@ -1,5 +1,7 @@
 // TODO(tom): Parameterize RoI support (or maybe RoI can be pulled from driver?)
 
+#define METAVISION_BRIDGE_DEBUG
+
 #include <cassert>
 #include <concepts>
 #include <cstdint>
@@ -61,23 +63,38 @@ private:
       time_diff_pub_;
   uint16_t roix, roiy, roi_width, roi_height;
   bool use_roi;
+  bool is_master_;
+
+#ifdef METAVISION_BRIDGE_DEBUG
+  std::uint64_t t_last_;
+  std::uint64_t t_last_front_;
+#endif
 
 public:
   EventBridgeNode()
       : Node("event_bridge"), roix(576), roiy(324), roi_width(128),
         roi_height(72), use_roi(false) {
     auto qos = rclcpp::QoS(10).best_effort();
+
     this->declare_parameter<bool>("is_master", false);
+    this->is_master_ = this->get_parameter("is_master").as_bool();
+
     this->sub_ = this->create_subscription<event_camera_msgs::msg::EventPacket>(
         "~/events_in", qos,
         std::bind(&EventBridgeNode::callback, this, std::placeholders::_1));
     this->pub_ =
         this->create_publisher<dvs_msgs::msg::EventArray>("~/events_out", qos);
-    if (this->get_parameter("is_master").as_bool()) {
+
+    if (this->is_master_) {
       this->time_diff_pub_ =
           this->create_publisher<builtin_interfaces::msg::Duration>(
               "/time_offset", qos);
     }
+
+#ifdef METAVISION_BRIDGE_DEBUG
+    this->t_last_ = 0;
+    this->t_last_front_ = 0;
+#endif
   }
 
 private:
@@ -102,14 +119,38 @@ private:
     event_array.width = use_roi ? roi_width : msg->width;
     event_array.events.reserve(this->decoder_.events.size());
 
+#ifdef METAVISION_BRIDGE_DEBUG
+    auto e = this->decoder_.events.front();
+    if (t_last_front_ == 0)
+      this->t_last_front_ = e.t;
+
+    else if ((e.t < t_last_front_))
+      RCLCPP_WARN(this->get_logger(), "Sensor batches are not monotonic! (t_last_front = %lu, t = %lu, d=%f ms)", t_last_front_, e.t, (t_last_front_ - e.t)/1000.0);
+
+    this->t_last_front_ = e.t;
+
+    // RCLCPP_INFO(this->get_logger(), "[%s]: t=%lu", this->is_master_ ? "master" : "slave", e.t);
+#endif
+
+
     // move events from decoder to publisher
     std::ranges::transform(
         this->decoder_.events, std::back_inserter(event_array.events),
         [this](const auto &item) {
+
           if (use_roi) {
             assert(item.x >= roix);
             assert(item.y >= roiy);
           }
+
+#ifdef METAVISION_BRIDGE_DEBUG
+          if (t_last_ == 0)
+            t_last_ = item.t;
+          else if ((item.t < t_last_))
+            RCLCPP_WARN(this->get_logger(), "Sensor time not monotonic! (t_last = %lu, t = %lu, d=%f ms)", t_last_, item.t, (t_last_ - item.t)/1000.0);
+          t_last_ = item.t;
+#endif
+
           dvs_msgs::msg::Event event;
           event.x = use_roi ? item.x - roix : item.x;
           event.y = use_roi ? item.y - roiy : item.y;
@@ -119,7 +160,7 @@ private:
           return event;
         });
 
-    if (this->get_parameter("is_master").as_bool()) {
+    if (is_master_) {
       builtin_interfaces::msg::Duration time_diff_msg;
 
       rclcpp::Time ros_time(msg->header.stamp);
