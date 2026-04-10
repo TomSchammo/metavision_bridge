@@ -127,7 +127,7 @@ private:
     else if ((e.t < t_last_front_))
       RCLCPP_WARN(this->get_logger(),
                   "Sensor batches are not monotonic! (t_last_front = %lu, t = "
-                  "%lu, d=%f ms)",
+                  "%lu, d=%f us)",
                   t_last_front_, e.t, (t_last_front_ - e.t) / 1000.0);
 
     this->t_last_front_ = e.t;
@@ -151,7 +151,7 @@ private:
           else if ((item.t < t_last_))
             RCLCPP_WARN(
                 this->get_logger(),
-                "Sensor time not monotonic! (t_last = %lu, t = %lu, d=%f ms)",
+                "Sensor time not monotonic! (t_last = %lu, t = %lu, d=%f us)",
                 t_last_, item.t, (t_last_ - item.t) / 1000.0);
           t_last_ = item.t;
 #endif
