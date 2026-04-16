@@ -17,6 +17,8 @@
 #include <event_camera_codecs/decoder_factory.h>
 #include <event_camera_msgs/msg/event_packet.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp/node_options.hpp>
+#include <rclcpp_components/register_node_macro.hpp>
 
 struct Event {
   uint64_t t;
@@ -71,9 +73,9 @@ private:
 #endif
 
 public:
-  EventBridgeNode()
-      : Node("event_bridge"), roix(576), roiy(324), roi_width(128),
-        roi_height(72), use_roi(false) {
+  explicit EventBridgeNode(const rclcpp::NodeOptions& options)
+      : Node("event_bridge", options), roix(576), roiy(324), roi_width(128),
+        roi_height(72), use_roi(true) {
     auto qos = rclcpp::QoS(5000).best_effort();
 
     this->declare_parameter<bool>("is_master", false);
@@ -193,9 +195,11 @@ private:
   }
 };
 
-int main(int argc, char *argv[]) {
-  rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<EventBridgeNode>());
-  rclcpp::shutdown();
-  return 0;
-}
+RCLCPP_COMPONENTS_REGISTER_NODE(EventBridgeNode)
+
+// int main(int argc, char *argv[]) {
+//   rclcpp::init(argc, argv);
+//   rclcpp::spin(std::make_shared<EventBridgeNode>());
+//   rclcpp::shutdown();
+//   return 0;
+// }

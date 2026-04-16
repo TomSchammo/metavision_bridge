@@ -12,6 +12,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp_components REQUIRED)
 find_package(event_camera_msgs REQUIRED)
 find_package(event_camera_codecs REQUIRED)
 find_package(dvs_msgs REQUIRED)
@@ -28,16 +29,28 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
-add_executable(metavision_bridge src/main.cpp)
-ament_target_dependencies(metavision_bridge
+# add_executable(metavision_bridge src/main.cpp)
+add_library(metavision_bridge_component SHARED src/main.cpp)
+ament_target_dependencies(metavision_bridge_component
   rclcpp
+  rclcpp_components
   event_camera_msgs
   event_camera_codecs
   dvs_msgs
 )
 
-install(TARGETS metavision_bridge
-  DESTINATION lib/${PROJECT_NAME}
+rclcpp_components_register_node(metavision_bridge_component
+  PLUGIN "EventBridgeNode"
+  EXECUTABLE metavision_bridge
+)
+
+ament_export_targets(export_metavision_bridge_component)
+
+install(TARGETS metavision_bridge_component
+  EXPORT export_metavision_bridge_component
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
 )
 
 install(DIRECTORY launch
