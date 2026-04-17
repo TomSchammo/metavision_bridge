@@ -75,7 +75,7 @@ private:
 public:
   explicit EventBridgeNode(const rclcpp::NodeOptions& options)
       : Node("event_bridge", options), roix(576), roiy(324), roi_width(128),
-        roi_height(72), use_roi(true) {
+        roi_height(72), use_roi(false) {
     auto qos = rclcpp::QoS(5000).best_effort();
 
     this->declare_parameter<bool>("is_master", false);
