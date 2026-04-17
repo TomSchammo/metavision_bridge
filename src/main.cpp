@@ -171,7 +171,7 @@ private:
       builtin_interfaces::msg::Duration time_diff_msg;
 
       rclcpp::Time ros_time(msg->header.stamp);
-      rclcpp::Time event_time(event_array.events.back().ts);
+      rclcpp::Time event_time(event_array.events[0].ts);
       rclcpp::Duration offset = event_time - ros_time;
 
       time_diff_msg.sec = static_cast<int32_t>(std::floor(offset.seconds()));
