@@ -6,6 +6,7 @@
 #include <concepts>
 #include <cstdint>
 #include <cstdlib>
+#include <format>
 #include <optional>
 #include <ranges>
 #include <utility>
@@ -68,8 +69,7 @@ private:
   bool is_master_;
 
 #ifdef METAVISION_BRIDGE_DEBUG
-  std::uint64_t t_last_;
-  std::uint64_t t_last_front_;
+  std::uint64_t seqno_;
 #endif
 
 public:
@@ -94,8 +94,7 @@ public:
     }
 
 #ifdef METAVISION_BRIDGE_DEBUG
-    this->t_last_ = 0;
-    this->t_last_front_ = 0;
+    this->seqno_ = 0;
 #endif
   }
 
@@ -122,17 +121,15 @@ private:
     event_array.events.reserve(this->decoder_.events.size());
 
 #ifdef METAVISION_BRIDGE_DEBUG
-    auto e = this->decoder_.events.front();
-    if (t_last_front_ == 0)
-      this->t_last_front_ = e.t;
-
-    else if ((e.t < t_last_front_))
-      RCLCPP_WARN(this->get_logger(),
-                  "Sensor batches are not monotonic! (t_last_front = %lu, t = "
-                  "%lu, d=%f us)",
-                  t_last_front_, e.t, (t_last_front_ - e.t) / 1000.0);
-
-    this->t_last_front_ = e.t;
+    if (this->seqno_ + 1 != msg->seq) {
+      RCLCPP_WARN(
+          this->get_logger(),
+          std::format(
+              "a message has been dropped!\nthis: {}\nlast: {}\ndelta: {}",
+              this->seqno_, msg->seq, msg->seq - this->seqno_)
+              .c_str());
+    }
+    this->seqno_ = msg->seq;
 
     // RCLCPP_INFO(this->get_logger(), "[%s]: t=%lu", this->is_master_ ?
     // "master" : "slave", e.t);
@@ -146,17 +143,6 @@ private:
             assert(item.x >= roix);
             assert(item.y >= roiy);
           }
-
-#ifdef METAVISION_BRIDGE_DEBUG
-          if (t_last_ == 0)
-            t_last_ = item.t;
-          else if ((item.t < t_last_))
-            RCLCPP_WARN(
-                this->get_logger(),
-                "Sensor time not monotonic! (t_last = %lu, t = %lu, d=%f us)",
-                t_last_, item.t, (t_last_ - item.t) / 1000.0);
-          t_last_ = item.t;
-#endif
 
           dvs_msgs::msg::Event event;
           event.x = use_roi ? item.x - roix : item.x;
