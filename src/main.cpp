@@ -7,7 +7,6 @@
 #include <cstdint>
 #include <cstdlib>
 #include <format>
-#include <optional>
 #include <ranges>
 #include <utility>
 #include <vector>
@@ -62,8 +61,6 @@ private:
   event_camera_codecs::DecoderFactory<EventPacket, Decoder> decoder_factory_;
   rclcpp::Subscription<event_camera_msgs::msg::EventPacket>::SharedPtr sub_;
   rclcpp::Publisher<dvs_msgs::msg::EventArray>::SharedPtr pub_;
-  std::optional<rclcpp::Publisher<builtin_interfaces::msg::Duration>::SharedPtr>
-      time_diff_pub_;
   uint16_t roix, roiy, roi_width, roi_height;
   bool use_roi;
   bool is_master_;
@@ -86,12 +83,6 @@ public:
         std::bind(&EventBridgeNode::callback, this, std::placeholders::_1));
     this->pub_ =
         this->create_publisher<dvs_msgs::msg::EventArray>("~/events_out", qos);
-
-    if (this->is_master_) {
-      this->time_diff_pub_ =
-          this->create_publisher<builtin_interfaces::msg::Duration>(
-              "/time_offset", qos);
-    }
   }
 
 private:
@@ -131,41 +122,30 @@ private:
     // "master" : "slave", e.t);
 #endif
 
+    // calculate offset to convert sensor time to wallclock time
+    const rclcpp::Time ros_time(msg->header.stamp);
+    const auto sensor_time =
+        rclcpp::Time(this->decoder_.events[0].t, RCL_ROS_TIME);
+    const rclcpp::Duration time_offset = ros_time - sensor_time;
+
     // move events from decoder to publisher
     std::ranges::transform(
         this->decoder_.events, std::back_inserter(event_array.events),
-        [this](const auto &item) {
+        [this, time_offset](const auto &item) {
           if (use_roi) {
             assert(item.x >= roix);
             assert(item.y >= roiy);
           }
 
+          const auto t = rclcpp::Time(item.t, RCL_ROS_TIME) + time_offset;
+
           dvs_msgs::msg::Event event;
           event.x = use_roi ? item.x - roix : item.x;
           event.y = use_roi ? item.y - roiy : item.y;
-          event.ts.sec = static_cast<int32_t>(item.t / one_ns);
-          event.ts.nanosec = static_cast<uint32_t>(item.t % one_ns);
+          event.ts = t;
           event.polarity = item.p;
           return event;
         });
-
-    if (is_master_) {
-      builtin_interfaces::msg::Duration time_diff_msg;
-
-      rclcpp::Time ros_time(msg->header.stamp);
-      rclcpp::Time event_time(event_array.events[0].ts);
-      rclcpp::Duration offset = event_time - ros_time;
-
-      time_diff_msg.sec = static_cast<int32_t>(std::floor(offset.seconds()));
-      time_diff_msg.nanosec = static_cast<uint32_t>(
-          mod<int64_t>(static_cast<int64_t>(offset.nanoseconds()), one_ns));
-
-      // clang-format off
-      while (!this->time_diff_pub_.has_value()) {}
-      // clang-format on
-
-      this->time_diff_pub_.value()->publish(time_diff_msg);
-    }
 
     assert(!event_array.events.empty());
 
