@@ -69,7 +69,7 @@ private:
   bool is_master_;
 
 #ifdef METAVISION_BRIDGE_DEBUG
-  std::uint64_t seqno_;
+  std::uint64_t seqno_{0};
 #endif
 
 public:
@@ -92,10 +92,6 @@ public:
           this->create_publisher<builtin_interfaces::msg::Duration>(
               "/time_offset", qos);
     }
-
-#ifdef METAVISION_BRIDGE_DEBUG
-    this->seqno_ = 0;
-#endif
   }
 
 private:
