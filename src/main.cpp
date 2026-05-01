@@ -66,9 +66,9 @@ private:
 #endif
 
 public:
-    auto qos = rclcpp::QoS(5000).best_effort();
   explicit EventBridgeNode(const rclcpp::NodeOptions &options)
       : Node("event_bridge", options) {
+    auto qos = rclcpp::QoS(150000).best_effort();
 
     this->declare_parameter<bool>("is_master", false);
     this->is_master_ = this->get_parameter("is_master").as_bool();
