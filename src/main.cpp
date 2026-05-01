@@ -1,5 +1,3 @@
-// TODO(tom): Parameterize RoI support (or maybe RoI can be pulled from driver?)
-
 #define METAVISION_BRIDGE_DEBUG
 
 #include <cassert>
@@ -61,8 +59,6 @@ private:
   event_camera_codecs::DecoderFactory<EventPacket, Decoder> decoder_factory_;
   rclcpp::Subscription<event_camera_msgs::msg::EventPacket>::SharedPtr sub_;
   rclcpp::Publisher<dvs_msgs::msg::EventArray>::SharedPtr pub_;
-  uint16_t roix, roiy, roi_width, roi_height;
-  bool use_roi;
   bool is_master_;
 
 #ifdef METAVISION_BRIDGE_DEBUG
@@ -70,10 +66,9 @@ private:
 #endif
 
 public:
-  explicit EventBridgeNode(const rclcpp::NodeOptions& options)
-      : Node("event_bridge", options), roix(576), roiy(324), roi_width(128),
-        roi_height(72), use_roi(false) {
     auto qos = rclcpp::QoS(5000).best_effort();
+  explicit EventBridgeNode(const rclcpp::NodeOptions &options)
+      : Node("event_bridge", options) {
 
     this->declare_parameter<bool>("is_master", false);
     this->is_master_ = this->get_parameter("is_master").as_bool();
@@ -103,8 +98,8 @@ private:
 
     dvs_msgs::msg::EventArray event_array;
     event_array.header = msg->header;
-    event_array.height = use_roi ? roi_height : msg->height;
-    event_array.width = use_roi ? roi_width : msg->width;
+    event_array.height = msg->height;
+    event_array.width = msg->width;
     event_array.events.reserve(this->decoder_.events.size());
 
 #ifdef METAVISION_BRIDGE_DEBUG
@@ -132,16 +127,11 @@ private:
     std::ranges::transform(
         this->decoder_.events, std::back_inserter(event_array.events),
         [this, time_offset](const auto &item) {
-          if (use_roi) {
-            assert(item.x >= roix);
-            assert(item.y >= roiy);
-          }
-
           const auto t = rclcpp::Time(item.t, RCL_ROS_TIME) + time_offset;
 
           dvs_msgs::msg::Event event;
-          event.x = use_roi ? item.x - roix : item.x;
-          event.y = use_roi ? item.y - roiy : item.y;
+          event.x = item.x;
+          event.y = item.y;
           event.ts = t;
           event.polarity = item.p;
           return event;
