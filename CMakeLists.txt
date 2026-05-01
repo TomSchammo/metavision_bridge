@@ -16,6 +16,7 @@ find_package(rclcpp_components REQUIRED)
 find_package(event_camera_msgs REQUIRED)
 find_package(event_camera_codecs REQUIRED)
 find_package(dvs_msgs REQUIRED)
+find_package(TBB REQUIRED)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
@@ -37,6 +38,10 @@ ament_target_dependencies(metavision_bridge_component
   event_camera_msgs
   event_camera_codecs
   dvs_msgs
+)
+
+target_link_libraries(metavision_bridge_component
+  TBB::tbb
 )
 
 rclcpp_components_register_node(metavision_bridge_component
