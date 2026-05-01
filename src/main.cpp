@@ -1,11 +1,11 @@
 #define METAVISION_BRIDGE_DEBUG
 
+#include <algorithm>
 #include <cassert>
 #include <concepts>
 #include <cstdint>
 #include <cstdlib>
 #include <format>
-#include <ranges>
 #include <utility>
 #include <vector>
 
@@ -14,8 +14,8 @@
 #include <event_camera_codecs/decoder.h>
 #include <event_camera_codecs/decoder_factory.h>
 #include <event_camera_msgs/msg/event_packet.hpp>
-#include <rclcpp/rclcpp.hpp>
 #include <rclcpp/node_options.hpp>
+#include <rclcpp/rclcpp.hpp>
 #include <rclcpp_components/register_node_macro.hpp>
 
 struct Event {
@@ -124,18 +124,19 @@ private:
     const rclcpp::Duration time_offset = ros_time - sensor_time;
 
     // move events from decoder to publisher
-    std::ranges::transform(
-        this->decoder_.events, std::back_inserter(event_array.events),
-        [this, time_offset](const auto &item) {
-          const auto t = rclcpp::Time(item.t, RCL_ROS_TIME) + time_offset;
+    std::transform(this->decoder_.events.begin(), this->decoder_.events.end(),
+                   std::back_inserter(event_array.events),
+                   [this, time_offset](const auto &item) {
+                     const auto t =
+                         rclcpp::Time(item.t, RCL_ROS_TIME) + time_offset;
 
-          dvs_msgs::msg::Event event;
-          event.x = item.x;
-          event.y = item.y;
-          event.ts = t;
-          event.polarity = item.p;
-          return event;
-        });
+                     dvs_msgs::msg::Event event;
+                     event.x = item.x;
+                     event.y = item.y;
+                     event.ts = t;
+                     event.polarity = item.p;
+                     return event;
+                   });
 
     assert(!event_array.events.empty());
 
