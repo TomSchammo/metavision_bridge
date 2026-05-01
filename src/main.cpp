@@ -5,6 +5,7 @@
 #include <concepts>
 #include <cstdint>
 #include <cstdlib>
+#include <execution>
 #include <format>
 #include <utility>
 #include <vector>
@@ -100,7 +101,7 @@ private:
     event_array.header = msg->header;
     event_array.height = msg->height;
     event_array.width = msg->width;
-    event_array.events.reserve(this->decoder_.events.size());
+    event_array.events.resize(this->decoder_.events.size());
 
 #ifdef METAVISION_BRIDGE_DEBUG
     if (this->seqno_ + 1 != msg->seq) {
@@ -124,8 +125,8 @@ private:
     const rclcpp::Duration time_offset = ros_time - sensor_time;
 
     // move events from decoder to publisher
-    std::transform(this->decoder_.events.begin(), this->decoder_.events.end(),
-                   std::back_inserter(event_array.events),
+    std::transform(std::execution::par, this->decoder_.events.begin(),
+                   this->decoder_.events.end(), event_array.events.begin(),
                    [this, time_offset](const auto &item) {
                      const auto t =
                          rclcpp::Time(item.t, RCL_ROS_TIME) + time_offset;
