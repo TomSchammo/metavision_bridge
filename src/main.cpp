@@ -1,4 +1,4 @@
-#define METAVISION_BRIDGE_DEBUG
+// #define METAVISION_BRIDGE_DEBUG
 
 #include <algorithm>
 #include <cassert>
