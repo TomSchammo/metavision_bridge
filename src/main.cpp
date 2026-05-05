@@ -29,10 +29,10 @@ constexpr uint64_t one_ns = 1'000'000'000;
 
 using event_camera_codecs::EventPacket;
 
-class Decoder : public event_camera_codecs::EventProcessor {
+class Processor : public event_camera_codecs::EventProcessor {
 public:
   std::vector<Event> events;
-  Decoder(size_t event_buffer_size = 150000) {
+  Processor(size_t event_buffer_size = 150000) {
     events.reserve(event_buffer_size);
   }
   inline void eventCD(uint64_t t, uint16_t ex, uint16_t ey,
@@ -49,8 +49,8 @@ public:
 
 class EventBridgeNode : public rclcpp::Node {
 private:
-  Decoder decoder_;
-  event_camera_codecs::DecoderFactory<EventPacket, Decoder> decoder_factory_;
+  Processor proc_;
+  event_camera_codecs::DecoderFactory<EventPacket, Processor> decoder_factory_;
   rclcpp::Subscription<event_camera_msgs::msg::EventPacket>::SharedPtr sub_;
   rclcpp::Publisher<dvs_msgs::msg::EventArray>::SharedPtr pub_;
   bool is_master_;
@@ -82,19 +82,19 @@ private:
       RCLCPP_WARN(this->get_logger(), "unknown encoding");
       return;
     }
-    decoder->decode(*msg, &this->decoder_);
+    decoder->decode(*msg, &this->proc_);
 
     // RCLCPP_INFO(this->get_logger(), "decoding %lu events",
     //             this->decoder_.events.size());
 
-    if (this->decoder_.events.size() == 0)
+    if (this->proc_.events.size() == 0)
       return;
 
     dvs_msgs::msg::EventArray event_array;
     event_array.header = msg->header;
     event_array.height = msg->height;
     event_array.width = msg->width;
-    event_array.events.resize(this->decoder_.events.size());
+    event_array.events.resize(this->proc_.events.size());
 
 #ifdef METAVISION_BRIDGE_DEBUG
     if (this->seqno_ + 1 != msg->seq) {
@@ -114,12 +114,12 @@ private:
     // calculate offset to convert sensor time to wallclock time
     const rclcpp::Time ros_time(msg->header.stamp);
     const auto sensor_time =
-        rclcpp::Time(this->decoder_.events[0].t, RCL_ROS_TIME);
+        rclcpp::Time(this->proc_.events[0].t, RCL_ROS_TIME);
     const rclcpp::Duration time_offset = ros_time - sensor_time;
 
     // move events from decoder to publisher
-    std::transform(std::execution::par, this->decoder_.events.begin(),
-                   this->decoder_.events.end(), event_array.events.begin(),
+    std::transform(std::execution::par, this->proc_.events.begin(),
+                   this->proc_.events.end(), event_array.events.begin(),
                    [this, time_offset](const auto &item) {
                      const auto t =
                          rclcpp::Time(item.t, RCL_ROS_TIME) + time_offset;
@@ -138,7 +138,7 @@ private:
     this->pub_->publish(event_array);
 
     // clear buffer after processing
-    this->decoder_.events.clear();
+    this->proc_.events.clear();
   }
 };
 
